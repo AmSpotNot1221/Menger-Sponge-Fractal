@@ -1,53 +1,69 @@
-local box = {}
-box.__index = box
-
+local repStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
-local boxMesh = ServerStorage.BoxMesh
+local box = require(script.Box)
 
-local currentMesh = {}
-
-function box.New(size,pos)
-	local newBox = {}
-	setmetatable(newBox,box)
+local function greedyMesh(mesh,subdivisions)
+	print(mesh)
+	local blocks = {}
+	local offset = math.floor(subdivisions/2) + 1
 	
-	newBox.Mesh = {Position = nil, Size = nil}
-	newBox.Mesh.Size = size
-	newBox.Mesh.Position = pos
+	local toDelete = {}
 	
-	newBox.subdivided = false
+	for i, part in mesh do
+		local x = part.Position.X + offset
+		local y = part.Position.Y + offset
+		local z = part.Position.Z + offset
+		
+		if blocks[x] then
+			if blocks[x][z] then
+				if blocks[x][z][y] then
+					table.insert(toDelete,i)
+					continue
+				end
+				blocks[x][z][y] = 1
+			else
+				blocks[x][z] = {}
+				blocks[x][z][y] = 1
+			end
+		else
+			blocks[x] = {}
+			blocks[x][z] = {}
+			blocks[x][z][y] = 1
+		end
+	end
 	
-	return newBox
+	--reverse table toDelete so that we can remove elements without messing up the index
+	table.sort(toDelete, function(a,b) return a > b end)
+	
+	for _, i in ipairs(toDelete) do
+		table.remove(mesh,i)
+	end
+	
+	return mesh
 end
 
-function box:Subdivide(iter,max)
-	if self.subdivided then return end
+local function sponge(size,iter,position,color)
+	local newBox = box.New(Vector3.new(size,size,size), position)
 	
-	local divisionSize = self.Mesh.Size/3
+	local model = Instance.new("Model",workspace)
+	model.Name = "MengerSponge"
 	
-	self.subdivided = true	
+	newBox:Subdivide(iter,iter)
 	
-	print(1)
-	
-	for x = -1,1 do
-		for y = -1,1 do
-			for z = -1,1 do
-				if math.abs(x) + math.abs(y) + math.abs(z) >= 2 then
-					if iter-1 > 0 then
-						local subdividedBox = box.New(divisionSize,self.Mesh.Position + divisionSize * Vector3.new(x,y,z))
-						subdividedBox:Subdivide(iter-1,max)
-					else
-						table.insert(currentMesh,{Position = self.Mesh.Position + divisionSize * Vector3.new(x,y,z), Size = divisionSize})
-					end
-				end
-			end
-		end
+	for _,cube in newBox:GetCurrentMesh() do
+		local part = ServerStorage.BoxMesh:Clone()
+		part.Parent = model
+		part.Position = cube.Position
+		part.Size = cube.Size
+		part.BrickColor = color or BrickColor.new("Dark green")
 	end
 end
 
-function box:GetCurrentMesh()
-	local toReturn = currentMesh
-	currentMesh = {}
-	return toReturn
-end
+repStorage.GenerateFractal.OnServerEvent:Connect(function(player,color,iterations)
+	if workspace:FindFirstChild("MengerSponge") then
+		workspace.MengerSponge:Destroy()
+	end
+	sponge(81,tonumber(iterations),Vector3.zero,BrickColor.new(color))
+end)
 
-return box
+sponge(81,1,Vector3.zero)
