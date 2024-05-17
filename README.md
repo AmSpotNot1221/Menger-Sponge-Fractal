@@ -1,6 +1,5 @@
-# Menger-Sponge-Fractal
+# Menger-Sponge-Fractal - Created by AmSpotNot_1221
 These scripts are designed for creating and managing a Menger Sponge fractal in Roblox Studio.
-## Created by AmSpotNot_1221
 
 ## Menger Sponge Server Script
 
